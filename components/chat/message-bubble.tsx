@@ -90,11 +90,11 @@ export function MessageBubble({ message, accentColor }: MessageBubbleProps) {
   const tone = analyzeTone(message.content);
 
   const toneStyles: Record<ToneType, string> = {
-    heated: "border-l-4 border-l-red-400 bg-red-50",
-    caring: "border-l-4 border-l-green-400 bg-green-50",
-    curious: "border-l-4 border-l-blue-400 bg-blue-50",
-    excited: "border-l-4 border-l-yellow-400 bg-yellow-50",
-    neutral: "border-l-4 border-l-gray-300 bg-gray-50",
+    heated: " bg-red-50",
+    caring: " bg-green-50",
+    curious: " bg-blue-50",
+    excited: " bg-yellow-50",
+    neutral: " bg-gray-50",
   };
 
   const toneEmojis: Record<ToneType, string> = {
@@ -106,9 +106,7 @@ export function MessageBubble({ message, accentColor }: MessageBubbleProps) {
   };
 
   return (
-    <Card
-      className={`p-4 ${colors.bubble} ${toneStyles[tone]} transition-all hover:shadow-md`}
-    >
+    <Card className={`p-4 ${toneStyles[tone]} transition-all `}>
       <div className="flex items-start gap-3">
         <div className="text-lg flex-shrink-0">{toneEmojis[tone]}</div>
 

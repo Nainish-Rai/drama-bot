@@ -6,8 +6,9 @@ import { Card } from "@/components/ui/card";
 import { ChatPanel } from "./chat-panel";
 import { ConversationHistory } from "./conversation-history";
 import { MessageBubble } from "./message-bubble";
-import { Send, Users, MessageSquare } from "lucide-react";
-import type { Message, SessionWithUsers } from "@/lib/types";
+import { TherapyAnalysisDialog } from "./therapy-analysis-dialog";
+import { Send, Users, MessageSquare, Brain, Loader2 } from "lucide-react";
+import type { Message, SessionWithUsers, TherapyAnalysis } from "@/lib/types";
 
 interface DualChatInterfaceProps {
   session: SessionWithUsers;
@@ -22,6 +23,10 @@ export function DualChatInterface({
   const [partnerAMessage, setPartnerAMessage] = useState("");
   const [partnerBMessage, setPartnerBMessage] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+  const [showTherapyAnalysis, setShowTherapyAnalysis] = useState(false);
+  const [therapyAnalysis, setTherapyAnalysis] =
+    useState<TherapyAnalysis | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const isPartnerA = currentUserId === session.userAId;
   const isPartnerB = currentUserId === session.userBId;
@@ -37,6 +42,9 @@ export function DualChatInterface({
   const userHasResponded = lastMessages.some(
     (msg) => msg.sender === currentPartner
   );
+
+  // Check if there are enough messages for analysis (at least 2 messages)
+  const canAnalyze = messages.length >= 2;
 
   const handleSendMessage = async (content: string, sender: "A" | "B") => {
     if (!content.trim()) return;
@@ -70,15 +78,50 @@ export function DualChatInterface({
     }
   };
 
+  const handleGetAIAnalysis = async () => {
+    if (!canAnalyze || isAnalyzing) return;
+
+    setIsAnalyzing(true);
+
+    try {
+      const response = await fetch("/api/resolve", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sessionId: session.id,
+          messages: messages,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.analysis) {
+        setTherapyAnalysis(data.analysis);
+        setShowTherapyAnalysis(true);
+      } else {
+        throw new Error("No analysis received from API");
+      }
+    } catch (error) {
+      console.error("Failed to get AI analysis:", error);
+      alert(
+        "Sorry, there was an error getting the AI analysis. Please try again."
+      );
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const handleSubmitForResolution = async () => {
     if (!bothPartnersResponded) return;
 
-    try {
-      // TODO: Submit to drama resolution API
-      console.log("Submitting for drama resolution...");
-    } catch (error) {
-      console.error("Failed to submit for resolution:", error);
-    }
+    // Use the same AI analysis function
+    await handleGetAIAnalysis();
   };
 
   return (
@@ -105,9 +148,30 @@ export function DualChatInterface({
             History
           </Button>
 
+          {canAnalyze && (
+            <Button
+              onClick={handleGetAIAnalysis}
+              disabled={isAnalyzing}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white flex items-center gap-2"
+            >
+              {isAnalyzing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  <Brain className="w-4 h-4" />
+                  Get AI Analysis
+                </>
+              )}
+            </Button>
+          )}
+
           {bothPartnersResponded && (
             <Button
               onClick={handleSubmitForResolution}
+              disabled={isAnalyzing}
               className="bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white"
             >
               Submit for Drama Resolution ✨
@@ -193,8 +257,24 @@ export function DualChatInterface({
             {session.userB.name}{" "}
             {hasPartnerBResponded ? "responded" : "waiting..."}
           </div>
+
+          {canAnalyze && (
+            <div className="text-purple-600 font-medium">
+              💡 Ready for AI analysis
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Therapy Analysis Dialog */}
+      {showTherapyAnalysis && therapyAnalysis && (
+        <TherapyAnalysisDialog
+          analysis={therapyAnalysis}
+          userAName={session.userA.name}
+          userBName={session.userB.name}
+          onClose={() => setShowTherapyAnalysis(false)}
+        />
+      )}
     </div>
   );
 }

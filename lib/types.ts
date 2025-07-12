@@ -38,3 +38,33 @@ export type SessionWithUsers = Session & {
 export type MessageWithSession = Message & {
   session: Session;
 };
+
+// New types for AI therapy analysis
+export type ToneAnalysis = {
+  tone:
+    | "aggressive"
+    | "defensive"
+    | "hurt"
+    | "calm"
+    | "understanding"
+    | "confused";
+  emotion: string;
+  intensity: number; // 1-10 scale
+};
+
+export type TherapyAnalysis = {
+  verdict: string;
+  explanation: string;
+  compromise: string;
+  userATone: ToneAnalysis;
+  userBTone: ToneAnalysis;
+  reasonableness: {
+    userA: number; // 1-10 scale (10 = most reasonable)
+    userB: number;
+    analysis: string;
+  };
+};
+
+export type ResolutionWithAnalysis = Resolution & {
+  analysis?: TherapyAnalysis;
+};
