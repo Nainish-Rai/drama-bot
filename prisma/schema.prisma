@@ -29,13 +29,22 @@ model User {
 
 model Session {
   id        String   @id @default(cuid())
-  userAId   String
-  userBId   String
+  userAId   String?  // Made optional for anonymous sessions
+  userBId   String?  // Made optional for anonymous sessions
   createdAt DateTime @default(now())
 
-  // Relations
-  userA       User         @relation("UserARelation", fields: [userAId], references: [id], onDelete: Cascade)
-  userB       User         @relation("UserBRelation", fields: [userBId], references: [id], onDelete: Cascade)
+  // Anonymous session fields
+  isAnonymous    Boolean @default(false)
+  inviteToken    String? @unique // UUID for sharing session
+  userAName      String? // Anonymous user A name
+  userBName      String? // Anonymous user B name
+  userAJoined    Boolean @default(false)
+  userBJoined    Boolean @default(false)
+  expiresAt      DateTime? // Optional expiration for anonymous sessions
+
+  // Relations - made optional for anonymous sessions
+  userA       User?        @relation("UserARelation", fields: [userAId], references: [id], onDelete: Cascade)
+  userB       User?        @relation("UserBRelation", fields: [userBId], references: [id], onDelete: Cascade)
   messages    Message[]
   resolutions Resolution[]
 

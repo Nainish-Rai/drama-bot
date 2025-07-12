@@ -32,9 +32,25 @@ interface TherapyResponse {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("Resolve API called");
+
+    // Check if GEMINI_API_KEY is available
+    if (!process.env.GEMINI_API_KEY) {
+      console.error("GEMINI_API_KEY environment variable is not set");
+      return NextResponse.json(
+        { error: "AI service not configured. Missing API key." },
+        { status: 500 }
+      );
+    }
+
     const { sessionId, messages } = await request.json();
+    console.log("Request data:", {
+      sessionId,
+      messagesCount: messages?.length,
+    });
 
     if (!sessionId || !messages || !Array.isArray(messages)) {
+      console.error("Invalid request data:", { sessionId, messages });
       return NextResponse.json(
         { error: "Missing required fields: sessionId and messages array" },
         { status: 400 }
@@ -51,22 +67,39 @@ export async function POST(request: NextRequest) {
     });
 
     if (!session) {
+      console.error("Session not found:", sessionId);
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
 
+    console.log("Session found:", {
+      id: session.id,
+      userA: session.userA?.name,
+      userB: session.userB?.name,
+      isAnonymous: session.isAnonymous,
+    });
+
     // Format messages for analysis
     const conversationText = messages
-      .map(
-        (msg: any) =>
-          `${msg.sender === "A" ? session.userA.name : session.userB.name}: ${
-            msg.content
-          }`
-      )
+      .map((msg: any) => {
+        let senderName: string;
+        if (msg.sender === "A") {
+          senderName = session.userA?.name ?? session.userAName ?? "User A";
+        } else {
+          senderName = session.userB?.name ?? session.userBName ?? "User B";
+        }
+        return `${senderName}: ${msg.content}`;
+      })
       .join("\n");
+
+    console.log("Conversation text length:", conversationText.length);
+
+    // Handle both regular and anonymous sessions
+    const userAName = session.userA?.name ?? session.userAName ?? "User A";
+    const userBName = session.userB?.name ?? session.userBName ?? "User B";
 
     // Create the therapy prompt
     const therapyPrompt = `
-You are an expert relationship therapist analyzing a conversation between two partners: ${session.userA.name} (User A) and ${session.userB.name} (User B).
+You are an expert relationship therapist analyzing a conversation between two partners: ${userAName} (User A) and ${userBName} (User B).
 
 CONVERSATION:
 ${conversationText}
@@ -117,11 +150,15 @@ Respond in this exact JSON format:
 Be empathetic, fair, and focus on healthy relationship dynamics. Don't take sides unfairly, but do call out unreasonable behavior when necessary. Use a warm but professional tone. 💕
 `;
 
+    console.log("Sending request to Gemini AI...");
+
     // Get AI response
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const result = await model.generateContent(therapyPrompt);
     const response = await result.response;
     const text = response.text();
+
+    console.log("Gemini AI response received, length:", text.length);
 
     // Parse the JSON response
     let therapyAnalysis: TherapyResponse;
@@ -129,11 +166,14 @@ Be empathetic, fair, and focus on healthy relationship dynamics. Don't take side
       // Extract JSON from the response (in case there's extra text)
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
+        console.error("No JSON found in AI response:", text);
         throw new Error("No JSON found in response");
       }
       therapyAnalysis = JSON.parse(jsonMatch[0]);
+      console.log("Successfully parsed AI analysis");
     } catch (parseError) {
       console.error("Failed to parse AI response:", text);
+      console.error("Parse error:", parseError);
       return NextResponse.json(
         { error: "Failed to parse AI response" },
         { status: 500 }
@@ -148,6 +188,8 @@ Be empathetic, fair, and focus on healthy relationship dynamics. Don't take side
         compromise: therapyAnalysis.compromise,
       },
     });
+
+    console.log("Resolution saved to database:", resolution.id);
 
     // Return the complete analysis
     return NextResponse.json({

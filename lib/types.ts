@@ -7,9 +7,17 @@ export type User = {
 
 export type Session = {
   id: string;
-  userAId: string;
-  userBId: string;
+  userAId: string | null; // Made optional for anonymous sessions
+  userBId: string | null; // Made optional for anonymous sessions
   createdAt: Date;
+  // Anonymous session fields
+  isAnonymous: boolean;
+  inviteToken: string | null;
+  userAName: string | null;
+  userBName: string | null;
+  userAJoined: boolean;
+  userBJoined: boolean;
+  expiresAt: Date | null;
 };
 
 export type Message = {
@@ -29,8 +37,8 @@ export type Resolution = {
 };
 
 export type SessionWithUsers = Session & {
-  userA: User;
-  userB: User;
+  userA: User | null; // Made optional for anonymous sessions
+  userB: User | null; // Made optional for anonymous sessions
   messages: Message[];
   resolutions: Resolution[];
 };
